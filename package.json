@@ -1,0 +1,19 @@
+{
+    "name": "weather-forecast",
+    "type": "module",
+    "devDependencies": {
+        "@badeball/cypress-cucumber-preprocessor": "^22.0.1",
+        "@bahmutov/cypress-esbuild-preprocessor": "^2.2.5",
+        "@types/bun": "latest",
+        "cypress": "14.4.1",
+        "esbuild": "^0.25.5",
+        "caniuse-lite": "^1.0.30001721"
+    },
+    "cypress-cucumber-preprocessor": {
+        "stepDefinitions": "cypress/e2e/step_definitions/**/*.{js,ts}",
+        "json": {
+            "enabled": true,
+            "output": "cypress/reports/cucumber-json/cucumber-report.json"
+        }
+    }
+}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="{{ app.locale }}">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="{{ asset('vite.svg') }}" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>
+            Beautiful Weather Forecast App
+        </title>
+        {% block importmap %}
+            {{ importmap('app') }}
+        {% endblock %}
+    </head>
+    <body>
+        <main class="min-h-screen bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800">
+            <div class="container px-4 py-8 mx-auto">
+                <div class="max-w-4xl mx-auto">
+                    {% block body %}{% endblock %}
+
+                    {# Footer #}
+                    <div class="mt-16 text-sm text-center text-white/50">
+                        <p>
+                            Weather data provided by Open-Meteo API
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </body>
+</html>
