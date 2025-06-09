@@ -15,16 +15,42 @@
         </p>
     </div>
 
+    {# Mensajes de error y alertas #}
+    {% for type, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="mb-4 p-4 rounded alert alert-{{ type }} bg-yellow-200 text-yellow-800" role="alert">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    {% if error is defined and error is not null %}
+        <div class="p-4 mt-4 mb-4 text-yellow-800 bg-yellow-200 rounded alert alert-warning">
+            {{ error }}
+        </div>
+    {% endif %}
+
     {# Search Bar #}
     <div class="flex justify-center mb-12">
         <div class="relative w-full max-w-md">
             {{ form_start(form, {'attr': {'data-turbo': 'false', 'novalidate': 'novalidate', 'class': 'relative' }}) }}
-                <twig:ux:icon name="lucide:search" class="absolute w-5 h-5 transform -translate-y-1/2 left-4 top-1/2 text-white/60" />
-                {{ form_widget(form.city) }}
-                <div class="mt-3 text-sm text-center text-white/80">
-                    <twig:ux:icon name="lucide:map-pin" class="inline w-4 h-4 mr-1" />
+            <twig:ux:icon name="lucide:search" class="absolute w-5 h-5 transform -translate-y-1/2 left-4 top-1/2 text-white/60" />
+            {{ form_widget(form.city) }}
+            <div id="city-suggestions" class="absolute z-10 w-full bg-white rounded shadow-lg mt-1 hidden"></div>
+            <div class="mt-3 text-sm text-center text-white/80">
+                <twig:ux:icon name="lucide:map-pin" class="inline w-4 h-4 mr-1" />
+                {% if geocodingResult is not null %}
+                    {{ geocodingResult.name }}
+                    ,
+                    {{ geocodingResult.admin1|default('') }}
+                    ,
+                    {{ geocodingResult.country|default('') }}
+                {% elseif cityName is not null %}
+                    {{ cityName }}
+                {% else %}
                     London, England, United Kingdom
-                </div>
+                {% endif %}
+            </div>
             {{ form_end(form) }}
         </div>
     </div>
@@ -32,315 +58,285 @@
     {# Content #}
     <div class="space-y-8">
         {# Current Weather #}
-        <div class="p-8 border shadow-xl bg-white/10 backdrop-blur-md rounded-3xl border-white/20">
-            <div class="flex items-center justify-between mb-8">
-                <div>
-                    <div class="mb-2 text-6xl font-light text-white">
-                        18°C
+        {% if weatherData is not null %}
+            <div class="p-8 border shadow-xl bg-white/10 backdrop-blur-md rounded-3xl border-white/20">
+                <div class="flex items-center justify-between mb-8">
+                    <div>
+                        <div class="mb-2 text-6xl font-light text-white">
+                            {{ weatherData.current.temperature_2m|default(0) }}°C
+                        </div>
+                        <div class="text-white/80 text-lg">
+                            {{ weatherData.current.time|date('l', 'Europe/Madrid') }}
+                        </div>
+                        <div class="mt-1 text-sm text-white/60">
+                            Feels like
+                            {{ weatherData.current.apparent_temperature|default(0) }}°C
+                        </div>
                     </div>
-                    <div class="text-lg text-white/80">
-                        Partly cloudy
-                    </div>
-                    <div class="mt-1 text-sm text-white/60">
-                        Feels like 14°C
+                    <div class="flex-shrink-0">
+                        {{ render(controller(
+                            'App\\Controller\\WeatherController::getWeatherInfo', { code: weatherData.current.weather_code }
+                        )) }}
                     </div>
                 </div>
-                <div class="flex-shrink-0">
-                    <twig:ux:icon name="lucide:cloud" class="w-20 h-20 text-white/90" />
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <twig:ux:icon name="lucide:sunrise" class="w-5 h-5 text-yellow-300" />
+                            <div>
+                                <div class="text-sm text-white/60">
+                                    Sunrise
+                                </div>
+                                <div class="font-medium text-white">
+                                    {{ weatherData.forecast.sunrise[0]|date('H:i', 'Europe/Madrid')|default('') }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <twig:ux:icon name="lucide:sunset" class="w-5 h-5 text-orange-300" />
+                            <div>
+                                <div class="text-sm text-white/60">
+                                    Sunset
+                                </div>
+                                <div class="font-medium text-white">
+                                    {{ weatherData.forecast.sunset[0]|date('H:i', 'Europe/Madrid')|default('') }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <twig:ux:icon name="lucide:droplets" class="w-5 h-5 text-blue-300" />
+                            <div>
+                                <div class="text-sm text-white/60">
+                                    Humidity
+                                </div>
+                                <div class="font-medium text-white">
+                                    {{ weatherData.current.relative_humidity_2m|default(0) }}%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <twig:ux:icon name="lucide:wind" class="w-5 h-5 text-gray-300" />
+                            <div>
+                                <div class="text-sm text-white/60">
+                                    Wind
+                                </div>
+                                <div class="font-medium text-white">
+                                    {{ weatherData.current.wind_speed_10m|default(0) }} km/h
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <twig:ux:icon name="lucide:eye" class="w-5 h-5 text-gray-300" />
+                            <div>
+                                <div class="text-sm text-white/60">
+                                    Cloud Cover
+                                </div>
+                                <div class="font-medium text-white">
+                                    {{ weatherData.current.cloud_cover|default(0) }}%
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <twig:ux:icon name="lucide:gauge" class="w-5 h-5 text-gray-300" />
+                            <div>
+                                <div class="text-sm text-white/60">
+                                    Pressure
+                                </div>
+                                <div class="font-medium text-white">
+                                    {{ weatherData.current.pressure_msl|default(0) }} hPa
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            <div class="grid grid-cols-2 gap-6">
-                <div class="space-y-4">
-                    <div class="flex items-center gap-3">
-                        <twig:ux:icon name="lucide:sunrise" class="w-5 h-5 text-yellow-300" />
-                        <div>
-                            <div class="text-sm text-white/60">
-                                Sunrise
-                            </div>
-                            <div class="font-medium text-white">
-                                04:45
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-3">
-                        <twig:ux:icon name="lucide:sunset" class="w-5 h-5 text-orange-300" />
-                        <div>
-                            <div class="text-sm text-white/60">
-                                Sunset
-                            </div>
-                            <div class="font-medium text-white">
-                                21:13
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-3">
-                        <twig:ux:icon name="lucide:droplets" class="w-5 h-5 text-blue-300" />
-                        <div>
-                            <div class="text-sm text-white/60">
-                                Humidity
-                            </div>
-                            <div class="font-medium text-white">
-                                40%
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="space-y-4">
-                    <div class="flex items-center gap-3">
-                        <twig:ux:icon name="lucide:wind" class="w-5 h-5 text-gray-300" />
-                        <div>
-                            <div class="text-sm text-white/60">
-                                Wind
-                            </div>
-                            <div class="font-medium text-white">
-                                15 km/h
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-3">
-                        <twig:ux:icon name="lucide:eye" class="w-5 h-5 text-gray-300" />
-                        <div>
-                            <div class="text-sm text-white/60">
-                                Cloud Cover
-                            </div>
-                            <div class="font-medium text-white">
-                                41%
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-3">
-                        <twig:ux:icon name="lucide:gauge" class="w-5 h-5 text-gray-300" />
-                        <div>
-                            <div class="text-sm text-white/60">
-                                Pressure
-                            </div>
-                            <div class="font-medium text-white">
-                                1008 hPa
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        {% endif %}
 
         {# 7-Day Forecast #}
-        <div class="space-y-6">
-            <h2 class="text-2xl font-light text-center text-white">
-                7-Day Forecast
-            </h2>
-            <div class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7">
-                {% for i in 1..7 %}
-                    <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 transition-all duration-200 hover:bg-white/15 {#{isToday ? 'ring-2 ring-white/30' : ''}#}">
-                        <div class="text-center">
-                            <div class="mb-3 text-sm font-medium text-white/80">
-                                Today
-                            </div>
-
-                            <div class="flex justify-center mb-4">
-                                <twig:ux:icon name="lucide:cloud-rain" class="w-10 h-10 text-white/90" />
-                            </div>
-
-                            <div class="mb-4 space-y-2">
-                                <div class="text-lg font-semibold text-white">
-                                    19°
+        {% if weatherData is not null and weatherData.forecast is defined %}
+            <div class="space-y-6">
+                <h2 class="text-2xl font-light text-center text-white">
+                    7-Day Forecast
+                </h2>
+                <div class="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-7">
+                    {% set forecast = weatherData.forecast %}
+                    {% for i in 0..6 %}
+                        <div class="p-6 transition-all duration-200 border bg-white/10 backdrop-blur-md rounded-2xl border-white/20 hover:bg-white/15">
+                            <div class="text-center">
+                                <div class="mb-3 text-sm font-medium text-white/80">
+                                    {{ forecast.time[i]|date('l', 'Europe/Madrid') }}
                                 </div>
-                                <div class="text-sm text-white/60">
-                                    11°
+                                <div class="flex justify-center mb-4">
+                                    {{ render(controller(
+                                        'App\\Controller\\WeatherController::getWeatherInfo', { code: forecast.weather_code[i], size: 'h-6 w-6' }
+                                    )) }}
                                 </div>
-                            </div>
-
-                            <div class="space-y-2 text-xs">
-                                <div class="flex items-center justify-center gap-1 text-white/60">
-                                    <twig:ux:icon name="lucide:droplets" class="w-3 h-3" />
-                                    <span>
-                                        {{ (4 * 100) / 100 }}
-                                        "
-                                    </span>
+                                <div class="mb-4 space-y-2">
+                                    <div class="text-lg font-semibold text-white">
+                                        {{ forecast.temperature_2m_max[i]|round|default(0) }}
+                                        °
+                                    </div>
+                                    <div class="text-sm text-white/60">
+                                        {{ forecast.temperature_2m_min[i]|round|default(0) }}
+                                        °
+                                    </div>
                                 </div>
-                                <div class="flex items-center justify-center gap-1 text-white/60">
-                                    <twig:ux:icon name="lucide:wind" class="w-3 h-3" />
-                                    <span>
-                                        20 km/h
-                                    </span>
+                                <div class="space-y-2 text-xs">
+                                    <div class="flex items-center justify-center gap-1 text-white/60">
+                                        <twig:ux:icon name="lucide:droplets" class="w-3 h-3" />
+                                        <span>
+                                            {{ forecast.precipitation_sum[i]|round|default(0) }}
+                                            mm
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center justify-center gap-1 text-white/60">
+                                        <twig:ux:icon name="lucide:wind" class="w-3 h-3" />
+                                        <span>
+                                            {{ forecast.wind_speed_10m_max[i]|round|default(0) }}
+                                            km/h
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                {% endfor %}
+                    {% endfor %}
+                </div>
             </div>
-        </div>
+        {% endif %}
 
         {# Additional Info #}
-        <div class="p-6 border bg-white/10 backdrop-blur-md rounded-3xl border-white/20">
-            <h3 class="mb-4 text-xl font-light text-center text-white">
-                Weather Details
-            </h3>
-            <div class="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
-                <div>
-                    <div class="text-2xl font-semibold text-white">
-                        6
+        {% if weatherData is not null %}
+            <div class="p-6 border bg-white/10 backdrop-blur-md rounded-3xl border-white/20">
+                <h3 class="mb-4 text-xl font-light text-center text-white">
+                    Weather Details
+                </h3>
+                <div class="grid grid-cols-2 gap-6 text-center md:grid-cols-4">
+                    <div>
+                        <div class="text-2xl font-semibold text-white">
+                            {% set uv_values = weatherData.forecast.uv_index_max %}
+                            {% set uv_index = (uv_values | reduce((sum, val) => sum + val, 0)) / (uv_values | length) %}
+                            {{ uv_index|round|default(0) }}
+                        </div>
+                        <div class="text-sm text-white/60">
+                            UV Index
+                        </div>
                     </div>
-                    <div class="text-sm text-white/60">
-                        UV Index
+                    <div>
+                        <div class="text-2xl font-semibold text-white">
+                            {% set rain_values = weatherData.forecast.rain_sum %}
+                            {% set rain_index = (rain_values | reduce((sum, val) => sum + val, 0)) / (rain_values | length) %}
+                            {{ rain_index|round|default(0) }}
+                            %
+                        </div>
+                        <div class="text-sm text-white/60">
+                            Rain Chance
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <div class="text-2xl font-semibold text-white">
-                        100%
+                    <div>
+                        <div class="text-2xl font-semibold text-white">
+                            {% set wind_gusts_values = weatherData.forecast.wind_gusts_10m_max %}
+                            {% set wind_gusts_index = (wind_gusts_values | reduce((sum, val) => sum + val, 0)) / (wind_gusts_values | length) %}
+                            {{ wind_gusts_index|round|default(0) }}
+                        </div>
+                        <div class="text-sm text-white/60">
+                            Wind Gusts
+                        </div>
                     </div>
-                    <div class="text-sm text-white/60">
-                        Rain Chance
-                    </div>
-                </div>
-                <div>
-                    <div class="text-2xl font-semibold text-white">
-                        25
-                    </div>
-                    <div class="text-sm text-white/60">
-                        Wind Gusts
-                    </div>
-                </div>
-                <div>
-                    <div class="text-2xl font-semibold text-white">
-                        GMT+1
-                    </div>
-                    <div class="text-sm text-white/60">
-                        Timezone
+                    <div>
+                        <div class="text-2xl font-semibold text-white">
+                            {{ weatherData.timezone|default('') }}
+                        </div>
+                        <div class="text-sm text-white/60">
+                            Timezone
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        {% endif %}
     </div>
+    <script type="module">
+        // Lista de ciudades de ejemplo. Puedes reemplazarla por una lista más grande o cargarla dinámicamente.
+        const cities = [
+            "London", "Madrid", "Paris", "Berlin", "Rome", "Lisbon", "Vienna", "Prague", "Budapest", "Warsaw"
+            // ...agrega más ciudades
+        ];
 
-{# <div class="w-full max-w-md mb-4 overflow-hidden text-white bg-purple-800 border shadow-xl rounded-3xl">
-    <h1 class="flex items-center justify-center mb-4 text-lg font-bold text-white">Weather Forecast</h1>
-    <div class="flex items-center gap-2">
-    {{ form_start(form, {'attr': {'data-turbo': 'false', 'novalidate': 'novalidate', 'class': 'mb-6 justify-around w-full'}}) }}
-    <div class="flex gap-2 px-4">
-    {{ form_widget(form.city) }}
-    <button type="submit"
-    class="w-20 gap-2 px-3 py-2 text-sm font-semibold text-indigo-600 transition-colors duration-150 bg-white border border-indigo-100 rounded-full shadow-sm hover:border-indigo-600 hover:bg-indigo-600 hover:text-white dark:border-transparent">
-    <twig:ux:icon name="lucide:search"/>
-    </button>
-    </div>
-    {{ form_end(form) }}
-    </div>
-    </div>
-    <div class="w-full max-w-md overflow-hidden text-white bg-purple-800 border shadow-xl rounded-3xl" data-v0-t="card">
-    <div class="p-6">
-    <div class="mb-6 text-sm text-purple-200">viernes 6 de junio de 2025, 17:05</div>
-    <div class="flex items-center justify-between mb-6">
-    <div class="flex items-center gap-2">
-    <div class="text-yellow-300">
-    <twig:ux:icon name="lucide:sun" class="w-8 h-8"/>
-    </div>
-    <div class="text-4xl font-bold">8°C</div>
-    </div>
-    <div>
-    <twig:ux:icon name="lucide:cloud" class="w-16 h-16 text-gray-200"/>
-    </div>
-    </div>
-    <div class="mb-4 text-lg">New York, USA</div>
-    <div class="flex justify-between mb-6">
-    <div class="flex items-center gap-2">
-    <twig:ux:icon name="lucide:sun" class="w-5 h-5 text-yellow-300"/>
-    <span class="text-sm">6:15 am</span>
-    </div>
-    <div class="text-sm">11h 42m</div>
-    <div class="flex items-center gap-2">
-    <twig:ux:icon name="lucide:moon" class="w-5 h-5 text-yellow-100"/>
-    <span class="text-sm">5:57 pm</span>
-    </div>
-    </div>
-    <div class="flex items-center gap-3 p-4 mb-6 bg-purple-700 border rounded-lg shadow-sm text-card-foreground"
-    data-v0-t="card">
-    <twig:ux:icon name="lucide:cloud-rain" class="w-6 h-6 text-blue-200"/>
-    <span>Rain 65%</span></div>
-    <div class="flex justify-between mb-6 text-sm">
-    <div>
-    <div class="text-purple-200">Humidity</div>
-    <div>68%</div>
-    </div>
-    <div>
-    <div class="text-purple-200">Wind</div>
-    <div>12 km/h</div>
-    </div>
-    </div>
-    <div>
-    <div class="mb-2 text-sm text-purple-200">Today</div>
-    <div class="grid grid-cols-4 gap-2">
-    <div
-    class="flex flex-col items-center p-3 bg-purple-700 border rounded-lg shadow-sm text-card-foreground"
-    data-v0-t="card">
-    <div class="mb-1 text-xs text-purple-300">Today</div>
-    <twig:ux:icon name="lucide:cloud" class="w-6 h-6 text-blue-200"/>
-    <div class="mt-1 font-medium">8°</div>
-    </div>
-    <div
-    class="flex flex-col items-center p-3 bg-purple-700 border rounded-lg shadow-sm text-card-foreground"
-    data-v0-t="card">
-    <div class="mb-1 text-xs text-purple-300">Tue</div>
-    <twig:ux:icon name="lucide:cloud-rain" class="w-6 h-6 text-blue-200"/>
-    <div class="mt-1 font-medium">7°</div>
-    </div>
-    <div
-    class="flex flex-col items-center p-3 bg-purple-700 border rounded-lg shadow-sm text-card-foreground"
-    data-v0-t="card">
-    <div class="mb-1 text-xs text-purple-300">Wed</div>
-    <twig:ux:icon name="lucide:cloud-rain" class="w-6 h-6 text-blue-200"/>
-    <div class="mt-1 font-medium">6°</div>
-    </div>
-    <div
-    class="flex flex-col items-center p-3 bg-purple-700 border rounded-lg shadow-sm text-card-foreground"
-    data-v0-t="card">
-    <div class="mb-1 text-xs text-purple-300">Thu</div>
-    <twig:ux:icon name="lucide:sun" class="w-6 h-6 text-yellow-300"/>
-    <div class="mt-1 font-medium">9°</div>
-    </div>
-    </div>
-    </div>
-    </div>
-    </div>
-#}
-{#
-    <div class="w-full max-w-md">
-    {{ form_start(form, {'attr': {'data-turbo': 'false', 'novalidate': 'novalidate', 'class': 'mb-4'}}) }}
-    <div class="relative">
-    {{ form_row(form.city) }}
-    {{ form_widget(form.submit) }}
-    </div>
-    {{ form_end(form) }}
-#}
-{# {% for type, messages in app.flashes %}
-    {% for message in messages %}
-    <div class="mb-4 p-4 rounded alert alert-{{ type }}">
-    {{ message }}
-    </div>
-    {% endfor %}
-    {% endfor %}
+        import { generateCsrfToken } from '../../assets/controllers/csrf_protection_controller.js';
 
-    {% if weatherData is defined and weatherData is not null %}
-    <div class="mt-4 weather-data">
-    <h2 class="mb-2 text-xl font-semibold">Weather in {{ city }}</h2>
-    <p>Temperature: {{ weatherData.temperature }}°C</p>
-    <p>Relative Humidity: {{ weatherData.relativeHumidity }}%</p>
-    <p>Precipitation: {{ weatherData.precipitation }} mm</p>
-    <p>Rain: {{ weatherData.rain }} mm</p>
-    <p>Weather: {{ weatherData.time }}</p>
-    </div>
-    {% endif %}
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.querySelector('form');
+            const cityInput = form.querySelector('input[name$="[city]"]');
+            const suggestionsBox = document.getElementById('city-suggestions');
+            let timeout = null;
 
-    {% if error is defined and error is not null %}
-    <div class="p-4 mt-4 mb-4 text-yellow-800 bg-yellow-200 rounded alert alert-warning">
-    {{ error }}
-    </div>
-{% endif %} #}
-{#
-</div> #}
+            if (!cityInput) return;
+
+            // Sugerencias de ciudades y submit automático
+            cityInput.addEventListener('input', function () {
+                clearTimeout(timeout);
+                const value = cityInput.value.trim().toLowerCase();
+
+                // Filtrar y ordenar ciudades
+                let filtered = [];
+                if (value.length > 0) {
+                    filtered = cities
+                        .filter(city => city.toLowerCase().includes(value))
+                        .sort((a, b) => {
+                            // Prioriza las que empiezan igual
+                            if (a.toLowerCase().startsWith(value) && !b.toLowerCase().startsWith(value)) return -1;
+                            if (!a.toLowerCase().startsWith(value) && b.toLowerCase().startsWith(value)) return 1;
+                            return a.localeCompare(b);
+                        });
+                }
+
+                // Mostrar sugerencias
+                if (filtered.length > 0) {
+                    suggestionsBox.innerHTML = filtered.map(city =>
+                        `<div class=\"px-4 py-2 cursor-pointer hover:bg-gray-200\" data-city=\"${city}\">${city}</div>`
+                    ).join('');
+                    suggestionsBox.classList.remove('hidden');
+                } else {
+                    suggestionsBox.classList.add('hidden');
+                }
+
+                // Lógica de submit automático si la ciudad existe en la API
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    const city = cityInput.value.trim();
+                    if (city.length < 2) return;
+
+                    fetch(`/api/geocode?city=${encodeURIComponent(city)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.found) {
+                                generateCsrfToken(form);
+                                form.submit();
+                            }
+                        });
+                }, 600);
+            });
+
+            // Al hacer clic en una sugerencia
+            suggestionsBox.addEventListener('click', function (e) {
+                if (e.target.dataset.city) {
+                    cityInput.value = e.target.dataset.city;
+                    suggestionsBox.classList.add('hidden');
+                    cityInput.dispatchEvent(new Event('input'));
+                }
+            });
+
+            // Ocultar sugerencias al perder foco
+            cityInput.addEventListener('blur', function () {
+                setTimeout(() => suggestionsBox.classList.add('hidden'), 100);
+            });
+        });
+    </script>
 {% endblock %}

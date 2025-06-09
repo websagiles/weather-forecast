@@ -149,7 +149,8 @@ entity: ## Crear nueva entidad
 
 clean: ## Limpiar caché y logs
 	@echo $(CYAN)Limpiando caché y logs...$(RESET)
-	rm -rf var/cache/* var/log/*
+	Remove-Item -Recurse var/cache/*
+	Remove-Item -Force var/log/*
 	@echo $(GREEN)✓ Caché y logs limpiados correctamente$(RESET)
 
 fix-build: db fixtures build ## Recrear DB + fixtures + build

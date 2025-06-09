@@ -1,0 +1,9 @@
+{{ _self.uxIcon(icon, description, class) }}
+
+{% macro uxIcon(icon, description, class) %}
+    <twig:ux:icon
+        name="{{ "lucide:%icon%"|replace({'%icon%': icon}) }}"
+        title="{{ description }}"
+        class="{{ class }}"
+    />
+{% endmacro %}

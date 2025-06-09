@@ -25,27 +25,39 @@ readonly class WeatherService
     /**
      * @throws TransportExceptionInterface
      */
-    public function fetchCurrentWeather(float $latitude, float $longitude): ?CurrentWeatherDto
+    /**
+     * Obtiene datos completos de Open-Meteo (current, daily, hourly) para la app.
+     * Devuelve un array con las claves: current, forecast, timezone, timezone_abbreviation
+     */
+    public function fetchCurrentWeather(float $latitude, float $longitude): ?array
     {
         try {
             $response = $this->httpClient->request('GET', $this->weatherApiBaseUrl, [
                 'query' => [
                     'latitude' => $latitude,
                     'longitude' => $longitude,
+                    'daily' => 'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,daylight_duration,sunshine_duration,uv_index_max,uv_index_clear_sky_max,rain_sum,showers_sum,snowfall_sum,precipitation_sum,precipitation_hours,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,shortwave_radiation_sum,et0_fao_evapotranspiration',
                     'hourly' => 'temperature_2m',
-                    'current' => 'temperature_2m,relative_humidity_2m,precipitation,rain',
+                    'current' => 'temperature_2m,relative_humidity_2m,precipitation,rain,is_day,cloud_cover,weather_code,apparent_temperature,showers,snowfall,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m',
                     'timezone' => 'auto',
+                    'past_days' => 5,
+                    'timeformat' => 'unixtime',
+                    'precipitation_unit' => 'inch',
                 ],
             ]);
 
-            // This will throw for >=300 status codes or decoding issues
             $data = $response->toArray();
 
-            if (!isset($data['current'])) {
-                throw new RuntimeException('Current weather data not found in API response payload.');
+            if (!isset($data['current']) || !isset($data['daily'])) {
+                throw new RuntimeException('Weather data not found in API response payload.');
             }
 
-            return CurrentWeatherDto::createFromArray($data['current']);
+            return [
+                'current' => $data['current'],
+                'forecast' => $data['daily'],
+                'timezone' => $data['timezone'] ?? null,
+                'timezone_abbreviation' => $data['timezone_abbreviation'] ?? null,
+            ];
 
         } catch (ServerExceptionInterface $e) {
             $response = $e->getResponse();
